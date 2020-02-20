@@ -1,4 +1,4 @@
-package dnsdrone
+package main
 
 import (
 	"flag"
@@ -61,8 +61,15 @@ func main() {
 	flag.Parse()
 
 	for _, name := range strings.Split(namelist, ",") {
+		if name == "" {
+			continue
+		}
 		// names from command line flag default to type A
 		queries = append(queries, dns.Question{Name: dns.Fqdn(name), Qtype: dns.TypeA})
+	}
+
+	if len(queries) == 0 {
+		log.Fatal("No query names found")
 	}
 
 	sig := make(chan os.Signal, 1)
