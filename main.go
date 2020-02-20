@@ -1,4 +1,4 @@
-package dnsdrone
+package main
 
 import (
 	"flag"
