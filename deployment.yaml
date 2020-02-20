@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnsdrone
+  labels:
+    app: dnsdrone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dnsdrone
+  template:
+    metadata:
+      labels:
+        app: dnsdrone
+      annotations:
+        prometheus.io/port: '9102'
+    spec:
+      containers:
+        - name: dnsdrone
+          image: chrisohaver/dnsdrone:latest
+          imagePullPolicy: Always
+          args:
+            - -qps=100
+            - -names=infoblox.com.,non.existant.,kubernetes.default.svc.cluster.local.,non.existant.svc.cluster.local.
+            - -timeout=5s
+
