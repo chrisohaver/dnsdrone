@@ -1,8 +1,17 @@
-dnsdrone is a testing tool that creates an on going dns load on a server.
+dnsdrone is a testing tool that creates an on going load of DNS queries on a server.
 
-By default, it will generate a constant DNS query load to it's DNS server.
-It produces metrics via Prometheus including:
- * dnsdrone_request_count
- * dnsdrone_request_duration
- * dnsdrone_response_count{rcode}
- * dnsdrone_response_lost_count
+It produces metrics via Prometheus.
+
+```
+Usage of ./dnsdrone:
+  -names string
+        Comma separated list of hostnames
+  -prom string
+        prometheus endpoint (default ":9696")
+  -qps int
+        DNS queries per second (default 10)
+  -timeout duration
+        Timeout for DNS queries (default 1s)
+  -verbose
+        Verbose log output
+```
