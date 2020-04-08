@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,10 +18,13 @@ import (
 )
 
 var (
-	qps     int
-	queries []dns.Question
-	timeout time.Duration
-	verbose bool
+	qps                int
+	queries            []dns.Question
+	timeout            time.Duration
+	verbose            bool
+	localResolver      bool
+	namelist, promaddr string
+	delay              time.Duration
 
 	RequestCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "dnsdrone",
@@ -50,13 +54,13 @@ var (
 
 func main() {
 
-	var namelist, promaddr string
-
 	flag.IntVar(&qps, "qps", 1, "DNS queries per second")
-	flag.StringVar(&promaddr, "prom", ":9696", "prometheus endpoint")
+	flag.StringVar(&promaddr, "prom", ":9696", "Prometheus endpoint")
 	flag.StringVar(&namelist, "names", "", "Comma separated list of hostnames")
 	flag.DurationVar(&timeout, "timeout", 5*time.Second, "Timeout for DNS queries")
 	flag.BoolVar(&verbose, "verbose", false, "Verbose log output")
+	flag.BoolVar(&localResolver, "local-resolver", true, "Use local resolver")
+	flag.DurationVar(&delay, "delay", 0, "Time to wait before sending queries")
 
 	flag.Parse()
 
@@ -65,7 +69,7 @@ func main() {
 			continue
 		}
 		// names from command line flag default to type A
-		queries = append(queries, dns.Question{Name: dns.Fqdn(name), Qtype: dns.TypeA})
+		queries = append(queries, dns.Question{Name: name, Qtype: dns.TypeA})
 	}
 
 	if len(queries) == 0 {
@@ -85,22 +89,50 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	c := new(dns.Client)
-	c.Timeout = timeout
-
 	address := config.Servers[0] + ":" + config.Port
+	c := new(dns.Client)
+
+	if !localResolver {
+		c.Timeout = timeout
+	}
+
 	i := 0
 	end := len(queries) - 1
+
+	time.Sleep(delay)
 
 	log.Printf("Sending %v queries per second to %v", qps, address)
 	for {
 		select {
 		case <-ticker.C:
 			go func() {
+				debugf("Sending query %v type %v", queries[i].Name, dns.TypeToString[queries[i].Qtype])
+				RequestCount.Inc()
+				if localResolver {
+					start := time.Now()
+					_, err := net.LookupIP(queries[i].Name)
+					rtt := time.Since(start)
+					RequestDuration.Observe(rtt.Seconds())
+					debugf("Received response in %v milliseconds", rtt.Milliseconds())
+					if err == nil {
+						ResponseCount.WithLabelValues("NOERROR").Inc()
+						return
+					}
+					if dnserr, ok := err.(*net.DNSError); ok && dnserr.IsTimeout {
+						ResponseLostCount.Inc()
+						return
+					}
+					if dnserr, ok := err.(*net.DNSError); ok && dnserr.IsNotFound {
+						ResponseCount.WithLabelValues("NXDOMAIN").Inc()
+						return
+					}
+					ResponseCount.WithLabelValues("other").Inc()
+					return
+				}
+
 				m := new(dns.Msg)
 				m.SetQuestion(queries[i].Name, queries[i].Qtype)
-				RequestCount.Inc()
-				debugf("Sending query %v type %v", queries[i].Name, dns.TypeToString[queries[i].Qtype])
+
 				r, rtt, err := c.Exchange(m, address)
 				if err != nil {
 					debugf("Error sending query: %v", err)
@@ -110,6 +142,7 @@ func main() {
 				debugf("Received response type %v in %v milliseconds", dns.RcodeToString[r.Rcode], rtt.Milliseconds())
 				RequestDuration.Observe(rtt.Seconds())
 				ResponseCount.WithLabelValues(dns.RcodeToString[r.Rcode]).Inc()
+
 			}()
 		case <-sig:
 			log.Printf("Got signal, exiting")
