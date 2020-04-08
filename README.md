@@ -8,6 +8,8 @@ It produces metrics via Prometheus.
 
 ```
 Usage of ./dnsdrone:
+  -delay
+        Time to wait before sending queries (default 0)
   -names string
         Comma separated list of hostnames
   -prom string
