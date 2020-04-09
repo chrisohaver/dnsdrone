@@ -8,18 +8,21 @@ It produces metrics via Prometheus.
 
 ```
 Usage of ./dnsdrone:
-  -delay
-        Time to wait before sending queries (default 0)
+  -delay duration
+        Time to wait before sending queries
+  -local-resolver
+        Use local resolver (default true)
   -names string
         Comma separated list of hostnames
   -prom string
-        prometheus endpoint (default ":9696")
+        Prometheus endpoint (default ":9696")
   -qps int
         DNS queries per second (default 1)
   -timeout duration
-        Timeout for DNS queries (default 5s)
+        Timeout for DNS queries (for non-local resolver) (default 5s)
   -verbose
         Verbose log output
+
 ```
 
 ## Metrics

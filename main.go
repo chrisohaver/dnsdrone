@@ -57,7 +57,7 @@ func main() {
 	flag.IntVar(&qps, "qps", 1, "DNS queries per second")
 	flag.StringVar(&promaddr, "prom", ":9696", "Prometheus endpoint")
 	flag.StringVar(&namelist, "names", "", "Comma separated list of hostnames")
-	flag.DurationVar(&timeout, "timeout", 5*time.Second, "Timeout for DNS queries")
+	flag.DurationVar(&timeout, "timeout", 5*time.Second, "Timeout for DNS queries (for non-local resolver)")
 	flag.BoolVar(&verbose, "verbose", false, "Verbose log output")
 	flag.BoolVar(&localResolver, "local-resolver", true, "Use local resolver")
 	flag.DurationVar(&delay, "delay", 0, "Time to wait before sending queries")
